@@ -7,10 +7,7 @@
 
 #include <stdint.h>
 
-//
 // Standard Math Functions
-//
-
 #define Min(a, b) (((a) < (b)) ? (a) : (b))
 #define Max(a, b) (((a) > (b)) ? (a) : (b))
 
@@ -39,17 +36,33 @@ ToDouble(uint64_t x) {
   return result;
 }
 
-//
 // Random Number Generator
-// xoroshiro128+  by David Blackman and Sebastiano Vigna
+// xoroshiro128+ by David Blackman and Sebastiano Vigna
 // http://xoroshiro.di.unimi.it/xoroshiro128plus.c
 global_variable uint64_t randomSeed[2];
 
+/*
+ * Function Name: rotl
+ * Description: Left rotate instruction, usually compiler optimized
+ * Parameters: x - value
+ *             k - shift amount
+ * Side Effects: N/A
+ * Error Conditions: N/A
+ * Return Value: Result
+ */
 internal inline uint64_t
 rotl(const uint64_t x, int k) {
   return (x << k) | (x >> (64 - k));
 }
 
+/*
+ * Function Name: Random
+ * Description: Generate random 64 bit number
+ * Parameters: N/A
+ * Side Effects: Updates state bits
+ * Error Conditions: N/A
+ * Return Value: Result
+ */
 internal uint64_t
 Random() {
   const uint64_t s0 = randomSeed[0];
@@ -63,14 +76,29 @@ Random() {
   return result;
 }
 
+/*
+ * Function Name: RandomPercent
+ * Description: Generate random double
+ * Parameters: N/A
+ * Side Effects: Updates state bits
+ * Error Conditions: N/A
+ * Return Value: Result
+ */
 internal inline double
 RandomPercent() {
   double result = ToDouble(Random());
   return result;
 }
 
-// Jump function equivalent to 2^64 calls to next()
-// used to generate 2^64 non non-overlapping subsequences for parallel computations
+/*
+ * Function Name: jump
+ * Description: Equivalent to 2^64 calls to Random(), able to generate 2^64
+ *              non-overlapping subsequences for parallel computations
+ * Parameters: N/A
+ * Side Effects: Updates state bits
+ * Error Conditions: N/A
+ * Return Value: N/A
+ */
 internal void
 jump() {
   static const uint64_t JUMP[] = { 0xbeac0467eba5facb, 0xd86b048b86aa9922 };

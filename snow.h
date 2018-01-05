@@ -8,6 +8,9 @@
 #ifndef SNOW_H
 #define SNOW_H
 
+// Debugging prints
+#include <stdio.h>
+
 #define STOP_HAMMER_TIME(x) #x
 #define TOSTRING(x) STOP_HAMMER_TIME(x)
 
@@ -30,6 +33,13 @@
                      }
 #endif
 
+#if EXTERNAL_BUILD
+#define DEBUGPRINT(args...)
+#else
+#define DEBUGPRINT(args...) \
+  fprintf(stderr, args)
+#endif
+
 #define Kilobytes(value) ((uint64_t)(value)*1024)
 #define Megabytes(value) (Kilobytes(value)*1024)
 #define Gigabytes(value) (Megabytes(value)*1024)
@@ -42,7 +52,7 @@
 #define ArrayLength(arr) (sizeof(arr) / sizeof(*arr))
 
 struct Memory {
-  bool isInitialized; // TODO maybe able to use something else as flag
+  bool isInitialized;
   size_t size;
   void *storage;
 };

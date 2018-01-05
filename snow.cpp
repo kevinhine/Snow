@@ -5,9 +5,9 @@
  * Date: Sep 06 2017
  */
 
+#include "render.h"
 #include "snow.h"
 #include "math.cpp"
-#include "render.h"
 
 inline uint8_t *
 GetPixel(FrameBuffer *buffer, int x, int y) {
@@ -46,7 +46,6 @@ Composite(Color src, Color dest) {
   return result;
 }
 
-
 internal void
 RenderGradient(FrameBuffer *buffer, int var) {
   uint8_t *row = (uint8_t *)buffer->bitmap;
@@ -61,36 +60,6 @@ RenderGradient(FrameBuffer *buffer, int var) {
     row += buffer->pitch;
   }
 }
-
-#if 0
-internal void
-DrawMask(FrameBuffer *buffer, double realMinX, double realMinY, Mask *mask, Color srcColor) {
-
-
-
-  int32_t minX = RoundDoubleToInt32(realMinX);
-  int32_t minY = RoundDoubleToInt32(realMinY);
-  int32_t maxX = RoundDoubleToInt32(realMaxX);
-  int32_t maxY = RoundDoubleToInt32(realMaxY);
-
-  minX = Max(0, minX);
-  minY = Max(0, minY);
-  maxX = Min(buffer->width, maxX);
-  maxY = Min(buffer->height, maxY);
-  
-  uint8_t *row = GetPixel(buffer, minX, minY);
-  for(int y = minY; y < maxY; y++) {
-    uint32_t *pixel = (uint32_t *)row;
-    for(int x = minX; x < maxX; x++) {
-      // Compositing
-      Color destColor = {*pixel};
-      Color color = Composite(srcColor, destColor);
-      *pixel++ = color.argb;
-    }
-    row += buffer->pitch;
-  }
-}
-#endif
 
 internal void
 FillRect(FrameBuffer *buffer, double realMinX, double realMinY, double realMaxX, double realMaxY, Color srcColor) {
@@ -109,10 +78,16 @@ FillRect(FrameBuffer *buffer, double realMinX, double realMinY, double realMaxX,
   for(int y = minY; y < maxY; y++) {
     uint32_t *pixel = (uint32_t *)row;
     for(int x = minX; x < maxX; x++) {
+      // Overwrite
+      if(srcColor.a == 1) {
+        *pixel++ = srcColor.argb;
+      }
       // Compositing
-      Color destColor = {*pixel};
-      Color color = Composite(srcColor, destColor);
-      *pixel++ = color.argb;
+      else {
+        Color destColor = {*pixel};
+        Color color = Composite(srcColor, destColor);
+        *pixel++ = color.argb;
+      }
     }
     row += buffer->pitch;
   }
@@ -151,7 +126,7 @@ UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
     randomSeed[0] = 0x0bdb1dd352d7ddd4;
     randomSeed[1] = 0x009b18cd16d1df52;
   
-    //Skip the last particle, as it has no next to initialize
+    // Link particle free list (skip the last, it has no next to initialize)
     for(int i = ArrayLength(state->particles) - 2; i >= 0; i--) {
       Particle *p = &state->particles[i];
       p->next = &state->particles[i + 1];
@@ -162,16 +137,16 @@ UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
   }
 
   // Specifies just the alpha color for the background
-  DoubleColor background = {0.1};
+  DoubleColor background = {0.05};
   FillRect(buffer, 0, 0, buffer->width, buffer->height, GetColor(background));
   //RenderGradient(buffer, state->ticks);
 
-  //Particle Spawning
+  // Particle Spawning
   // TODO constant particle density?
   if(state->ticks % 2 == 0) {
     Particle *p = state->availableParticle;
     // TODO: replace oldest?
-    //Assert(p != 0);
+    Assert(p != 0);
     if(p) {
       state->availableParticle = p->next;
       InitParticle(buffer, p);
