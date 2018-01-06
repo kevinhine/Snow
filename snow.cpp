@@ -35,12 +35,20 @@ DrawParticle(FrameBuffer *buffer, Particle *p) {
  */
 internal void
 InitParticle(FrameBuffer *buffer, Particle *p) {
-  p->radius = 2.5f;
+  // Z depth must go first
+  p->z = RandomPercent();
+  p->radius = 2.5f + 2 * p->z;
   p->x = Random() % buffer->width;
   p->y = -2 * p->radius;
+
   p->velX = 0;
-  p->velY = 160;
-  p->color.a = 0.25 + 0.75*RandomPercent();
+  p->velY = 100;
+  p->targetVelX = p->velX;
+  p->targetVelY = p->velY;
+  p->lerp = 1;
+  p->lerpSpeed = 0.01;
+
+  p->color.a = 0.25 + 0.75 * p->z;
   p->color.r = 0.55f;
   p->color.g = 0.9f; 
   p->color.b = 1.0f;
@@ -58,10 +66,28 @@ InitParticle(FrameBuffer *buffer, Particle *p) {
  */
 internal void
 AnimateParticle(Particle *p, double secondsElapsed) {
-  p->x += p->velX * secondsElapsed;
-  p->y += p->velY * secondsElapsed;
+  // Perterbations
+  if(RandomPercent() > 0.95 && p->lerp > 0.7) {
+    p->startVelX = p->velX;
+    p->startVelY = p->velY;
+
+    p->targetVelX = 20 * (0.5 - RandomPercent());
+    p->targetVelY = p->velY + 10 * (0.5 - RandomPercent());
+
+    p->lerp = 0;
+  }
+
+  // Acceleration
+  p->velX = Lerp(p->targetVelX, p->startVelX, p->lerp);
+  p->velY = Lerp(p->targetVelY, p->startVelY, p->lerp);
+  p->lerp = (p->lerp > 1) ? 1 : p->lerp + p->lerpSpeed;
+
+  // Velocity
+  p->x += p->velX * secondsElapsed * (0.5 + 0.5 * p->z);
+  p->y += p->velY * secondsElapsed * (0.5 + 0.5 * p->z);
   p->lifetime--;
 }
+
 
 /*
  * Function Name: UpdateAndRender
@@ -111,6 +137,9 @@ UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
   // Simulate and draw particles
   for(size_t i = 0; i < ArrayLength(state->particles); i++) {
     Particle *p = state->particles + i;
+
+    // TODO Make particles fade out as they near their lifetime, die early if
+    // they leave the screen
 
     // Add to free list
     if(p->lifetime != 0 && p->lifetime <= 1) {

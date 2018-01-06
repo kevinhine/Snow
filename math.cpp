@@ -17,6 +17,12 @@ Lerp(uint8_t a, uint8_t b, double percent) {
   return result;
 }
 
+internal inline double
+Lerp(double a, double b, double percent) {
+  double result = b + percent * (a - b);
+  return result;
+}
+
 // Rounds positive
 internal inline int32_t
 RoundDoubleToInt32(double d) {
