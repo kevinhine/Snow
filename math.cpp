@@ -17,6 +17,7 @@ Lerp(uint8_t a, uint8_t b, double percent) {
   return result;
 }
 
+// Rounds positive
 internal inline int32_t
 RoundDoubleToInt32(double d) {
   int32_t result = (int32_t)(d + 0.5f);
@@ -29,7 +30,7 @@ RoundDoubleToUInt32(double d) {
   return result;
 }
 
-// Bit-Conversion to a double (used for random numbers)
+// Bit-conversion to a double (used for random numbers)
 internal inline double
 ToDouble(uint64_t x) {
   double result = (x >> 11) * (1. / ((uint64_t)1 << 53));

@@ -9,12 +9,30 @@
 #include "snow.h"
 #include "math.cpp"
 
+/*
+ * Function Name: GetPixel
+ * Description: Pixel access from framebuffer
+ * Parameters: buffer - framebuffer
+ *             x - horizontal pos
+ *             y - vertical pos
+ * Side Effects: N/A
+ * Error Conditions: N/A
+ * Return Value: Result
+ */
 inline uint8_t *
 GetPixel(FrameBuffer *buffer, int x, int y) {
   uint8_t *result = (uint8_t *)buffer->bitmap + x*buffer->pixelBytes + y*buffer->pitch;
   return result;
 }
 
+/*
+ * Function Name: GetColor
+ * Description: Convert double color to int color
+ * Parameters: c - color to convert
+ * Side Effects: N/A
+ * Error Conditions: N/A
+ * Return Value: Result
+ */
 inline Color
 GetColor(DoubleColor c) {
   Color result;
@@ -25,6 +43,14 @@ GetColor(DoubleColor c) {
   return result;
 }
 
+/*
+ * Function Name: GetDoubleColor
+ * Description: Convert 32-bit argb color to 0-1.0 double color
+ * Parameters: c - color to convert
+ * Side Effects: N/A
+ * Error Conditions: N/A
+ * Return Value: Result
+ */
 inline DoubleColor
 GetDoubleColor(uint32_t c) {
   DoubleColor result;
@@ -35,6 +61,15 @@ GetDoubleColor(uint32_t c) {
   return result;
 }
 
+/*
+ * Function Name: Composite
+ * Description: Overlay src on desitantion by alpha
+ * Parameters: src - additive color
+ *             dest - initial color
+ * Side Effects: N/A
+ * Error Conditions: N/A
+ * Return Value: Result
+ */
 inline internal Color
 Composite(Color src, Color dest) {
   double percent = (double) src.a / 255.0f;
@@ -46,6 +81,15 @@ Composite(Color src, Color dest) {
   return result;
 }
 
+/*
+ * Function Name: RenderGradient
+ * Description: Debugging function for frame timing, color endian-ness
+ * Parameters: buffer - framebuffer
+ *             var - gradient offset
+ * Side Effects: Fills framebuffer with tiled gradient
+ * Error Conditions: N/A
+ * Return Value: N/A
+ */
 internal void
 RenderGradient(FrameBuffer *buffer, int var) {
   uint8_t *row = (uint8_t *)buffer->bitmap;
@@ -61,6 +105,19 @@ RenderGradient(FrameBuffer *buffer, int var) {
   }
 }
 
+/*
+ * Function Name: FillRect
+ * Description: Draw filled rectangle to framebuffer
+ * Parameters: buffer - framebuffer
+ *             realMinX - horizontal start pos
+ *             realMinY - horizontal end pos
+ *             realMaxX - vertical start pos
+ *             realMaxY - vertical end pos
+ *             srcColor - rect color
+ * Side Effects: Fills framebuffer with tiled gradient
+ * Error Conditions: N/A
+ * Return Value: N/A
+ */
 internal void
 FillRect(FrameBuffer *buffer, double realMinX, double realMinY, double realMaxX, double realMaxY, Color srcColor) {
   // TODO give partial pixels the color but with alpha?
@@ -93,12 +150,30 @@ FillRect(FrameBuffer *buffer, double realMinX, double realMinY, double realMaxX,
   }
 }
 
+/*
+ * Function Name: DrawParticle
+ * Description: Render particle
+ * Parameters: buffer - framebuffer
+ *             p - particle
+ * Side Effects: Render particle to framebuffer
+ * Error Conditions: N/A
+ * Return Value: N/A
+ */
 internal void
 DrawParticle(FrameBuffer *buffer, Particle *p) {
   Color c = GetColor(p->color);
   FillRect(buffer, p->x - p->radius, p->y - p->radius, p->x + p->radius, p->y + p->radius, c);
 }
 
+/*
+ * Function Name: InitParticle
+ * Description: Initialize particle
+ * Parameters: buffer - framebuffer
+ *             p - particle
+ * Side Effects: N/A
+ * Error Conditions: N/A
+ * Return Value: N/A
+ */
 internal void
 InitParticle(FrameBuffer *buffer, Particle *p) {
   p->radius = 2.5f;
@@ -108,9 +183,18 @@ InitParticle(FrameBuffer *buffer, Particle *p) {
   p->color.r = 0.55f;
   p->color.g = 0.9f; 
   p->color.b = 1.0f;
-  p->lifetime = 600;
+  p->lifetime = 200;
 }
 
+/*
+ * Function Name: AnimateParticle
+ * Description: Update particle state
+ * Parameters: p - particle
+ *             secondsElapsed - animation time step
+ * Side Effects: Render particle to framebuffer
+ * Error Conditions: N/A
+ * Return Value: N/A
+ */
 internal void
 AnimateParticle(Particle *p, double secondsElapsed) {
   p->x += 0;
@@ -118,6 +202,16 @@ AnimateParticle(Particle *p, double secondsElapsed) {
   p->lifetime--;
 }
 
+/*
+ * Function Name: UpdateAndRender
+ * Description: Manage particle state and display
+ * Parameters: memory - system allocated storage
+ *             buffer - framebuffer
+ *             secondsElapsed - animation time step
+ * Side Effects: Updates and Renders particles
+ * Error Conditions: N/A
+ * Return Value: N/A
+ */
 internal void
 UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
   Assert(sizeof(State) < memory->size);
@@ -126,39 +220,43 @@ UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
     randomSeed[0] = 0x0bdb1dd352d7ddd4;
     randomSeed[1] = 0x009b18cd16d1df52;
   
-    // Link particle free list (skip the last, it has no next to initialize)
+    // Link particle free list
     for(int i = ArrayLength(state->particles) - 2; i >= 0; i--) {
-      Particle *p = &state->particles[i];
-      p->next = &state->particles[i + 1];
+      Particle *p = state->particles + i;
+      p->next = p + 1;
     }
+
     state->availableParticle = state->particles;
 
     memory->isInitialized = true;
   }
 
-  // Specifies just the alpha color for the background
-  DoubleColor background = {0.05};
+  // Specifies color for the background
+  DoubleColor background = {1, 0.01, 0.02, 0.05};
   FillRect(buffer, 0, 0, buffer->width, buffer->height, GetColor(background));
   //RenderGradient(buffer, state->ticks);
 
-  // Particle Spawning
+  // Particle spawning
   // TODO constant particle density?
   if(state->ticks % 2 == 0) {
     Particle *p = state->availableParticle;
-    // TODO: replace oldest?
-    Assert(p != 0);
+
     if(p) {
       state->availableParticle = p->next;
       InitParticle(buffer, p);
     }
+    // TODO Currently, particles fail to spawn if none are available. Possibly
+    // look into reducing lifetimes of existing particles or cull at higher
+    // threshold
   }
 
-  //Simulate and Draw Particles
+  // Simulate and draw particles
   for(size_t i = 0; i < ArrayLength(state->particles); i++) {
-    Particle *p = &state->particles[i];
-    if(p->lifetime == 0) {
-      p->next = state->availableParticle;
-      state->availableParticle = p;
+    Particle *p = state->particles + i;
+
+    // Add to free list
+    if(p->lifetime != 0 && p->lifetime < 1) {
+
     }
     else {
       AnimateParticle(p, secondsElapsed);

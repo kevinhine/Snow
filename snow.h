@@ -42,8 +42,6 @@
 
 #define Kilobytes(value) ((uint64_t)(value)*1024)
 #define Megabytes(value) (Kilobytes(value)*1024)
-#define Gigabytes(value) (Megabytes(value)*1024)
-#define Terabytes(value) (Gigabytes(value)*1024)
 
 #define internal static
 #define local_persist static
@@ -65,22 +63,17 @@ struct FrameBuffer {
   int pixelBytes;
 };
 
-//
-// Services Provided to the Platform
-//
+// Services provided to the platform
 internal void UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed);
 
-
-//
-// Application Structures
-//
+// Application structures
 #include "render.h"
 
 struct State {
   uint64_t ticks;
   Particle *availableParticle;
   // Size >= particle lifetime/spawn rate
-  Particle particles[300]; 
+  Particle particles[100]; 
 };
 
 #endif /* SNOW_H */
