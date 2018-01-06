@@ -73,7 +73,7 @@ struct State {
   uint64_t ticks;
   Particle *availableParticle;
   // Size >= particle lifetime/spawn rate
-  Particle particles[100]; 
+  Particle particles[1000]; 
 };
 
 #endif /* SNOW_H */

@@ -35,7 +35,7 @@ Abs(double d) {
   return (d < 0) ? -d : d;
 }
 
-// Bit-conversion to a double (used for random numbers)
+// Bit-conversion to a double [0,1)
 internal inline double
 ToDouble(uint64_t x) {
   double result = (x >> 11) * (1. / ((uint64_t)1 << 53));
