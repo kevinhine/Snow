@@ -43,6 +43,8 @@ struct Particle {
     struct {
       double x;
       double y;
+      double velX;
+      double velY;
       double radius;
       DoubleColor color;
     };

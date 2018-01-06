@@ -66,13 +66,16 @@ GetDoubleColor(uint32_t c) {
  * Description: Overlay src on desitantion by alpha
  * Parameters: src - additive color
  *             dest - initial color
+ *             percent - color lerp amount
  * Side Effects: N/A
  * Error Conditions: N/A
  * Return Value: Result
  */
 inline internal Color
-Composite(Color src, Color dest) {
-  double percent = (double) src.a / 255.0f;
+Composite(Color src, Color dest, double percent) {
+  if(percent == 1) {
+    return src;
+  }
   Color result;
   result.a = src.a;
   result.r = Lerp(src.r, dest.r, percent);
@@ -109,42 +112,65 @@ RenderGradient(FrameBuffer *buffer, int var) {
  * Function Name: FillRect
  * Description: Draw filled rectangle to framebuffer
  * Parameters: buffer - framebuffer
- *             realMinX - horizontal start pos
- *             realMinY - horizontal end pos
- *             realMaxX - vertical start pos
- *             realMaxY - vertical end pos
+ *             startX - min x pos
+ *             startY - min y pos
+ *             endX - max x pos
+ *             endY - max y pos
  *             srcColor - rect color
  * Side Effects: Fills framebuffer with tiled gradient
  * Error Conditions: N/A
  * Return Value: N/A
  */
 internal void
-FillRect(FrameBuffer *buffer, double realMinX, double realMinY, double realMaxX, double realMaxY, Color srcColor) {
-  // TODO give partial pixels the color but with alpha?
-  int32_t minX = RoundDoubleToInt32(realMinX);
-  int32_t minY = RoundDoubleToInt32(realMinY);
-  int32_t maxX = RoundDoubleToInt32(realMaxX);
-  int32_t maxY = RoundDoubleToInt32(realMaxY);
+FillRect(FrameBuffer *buffer, double startX, double startY, double endX, double endY, Color srcColor) {
+  int32_t minX = RoundDoubleToInt32(startX);
+  int32_t minY = RoundDoubleToInt32(startY);
+  int32_t maxX = RoundDoubleToInt32(endX);
+  int32_t maxY = RoundDoubleToInt32(endY);
 
-  if(minX < 0) minX = 0;
-  if(minY < 0) minY = 0;
-  maxX = Min(buffer->width, maxX);
-  maxY = Min(buffer->height, maxY);
+  double minXFill = Abs(startX - minX);
+  double minYFill = Abs(startY - minY);
+  double maxXFill = Abs(endX - maxX);
+  double maxYFill = Abs(endY - maxY);
+
+  // Clamp
+  if(minX <= 0) {
+    minX = 0;
+    minXFill = 1;
+  }
+  if(minY <= 0) {
+    minY = 0;
+    minYFill = 1;
+  }
+  if(maxX >= buffer->width) {
+    maxX = buffer->width;
+    maxXFill = 1;
+  }
+  if(maxY >= buffer->height) {
+    maxY = buffer->height;
+    maxYFill = 1;
+  }
 
   uint8_t *row = GetPixel(buffer, minX, minY);
   for(int y = minY; y < maxY; y++) {
+
     uint32_t *pixel = (uint32_t *)row;
     for(int x = minX; x < maxX; x++) {
-      // Overwrite
-      if(srcColor.a == 1) {
-        *pixel++ = srcColor.argb;
-      }
+
       // Compositing
-      else {
-        Color destColor = {*pixel};
-        Color color = Composite(srcColor, destColor);
-        *pixel++ = color.argb;
-      }
+      Color destColor = {*pixel};
+      double alpha = (destColor.a / 255.0f);
+
+      // Partial pixel alpha multiplier
+      double fillRatio = 1;
+      if(y == minY) fillRatio *= minYFill;
+      if(x == minX) fillRatio *= minXFill;
+      if(y == maxY - 1) fillRatio *= maxYFill;
+      if(x == maxX - 1) fillRatio *= maxXFill;
+
+      double percent = alpha * fillRatio;
+      Color color = Composite(srcColor, destColor, percent);
+      *pixel++ = color.argb;
     }
     row += buffer->pitch;
   }
@@ -176,9 +202,11 @@ DrawParticle(FrameBuffer *buffer, Particle *p) {
  */
 internal void
 InitParticle(FrameBuffer *buffer, Particle *p) {
-  p->radius = 2.5f;
+  p->radius = 20;//2.5f;
   p->x = Random() % buffer->width;
   p->y = -2 * p->radius;
+  p->velX = 50;
+  p->velY = 160;
   p->color.a = 0.25 + 0.75*RandomPercent();
   p->color.r = 0.55f;
   p->color.g = 0.9f; 
@@ -197,8 +225,8 @@ InitParticle(FrameBuffer *buffer, Particle *p) {
  */
 internal void
 AnimateParticle(Particle *p, double secondsElapsed) {
-  p->x += 0;
-  p->y += (160 * secondsElapsed);
+  p->x += p->velX * secondsElapsed;
+  p->y += p->velY * secondsElapsed;
   p->lifetime--;
 }
 
@@ -214,7 +242,7 @@ AnimateParticle(Particle *p, double secondsElapsed) {
  */
 internal void
 UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
-  Assert(sizeof(State) < memory->size);
+  Assert(sizeof(State) <= memory->size);
   State *state = (State *)memory->storage;
   if(!memory->isInitialized) {
     randomSeed[0] = 0x0bdb1dd352d7ddd4;
@@ -232,9 +260,9 @@ UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
   }
 
   // Specifies color for the background
-  DoubleColor background = {1, 0.01, 0.02, 0.05};
+  DoubleColor background = {1}; //{1, 0.01, 0.02, 0.05};
   FillRect(buffer, 0, 0, buffer->width, buffer->height, GetColor(background));
-  //RenderGradient(buffer, state->ticks);
+  RenderGradient(buffer, state->ticks);
 
   // Particle spawning
   // TODO constant particle density?
@@ -255,8 +283,10 @@ UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
     Particle *p = state->particles + i;
 
     // Add to free list
-    if(p->lifetime != 0 && p->lifetime < 1) {
-
+    if(p->lifetime != 0 && p->lifetime <= 1) {
+      p->next = state->availableParticle;
+      state->availableParticle = p;
+      p->lifetime = 0;
     }
     else {
       AnimateParticle(p, secondsElapsed);

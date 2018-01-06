@@ -243,7 +243,7 @@ WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR commandLine, int showC
   Win32ResizeDIBSection(&globalBuffer, dimension.width, dimension.height);
 
   Memory memory = {};
-  memory.size = Megabytes(1);
+  memory.size = sizeof(State); //Megabytes(1);
   memory.storage = VirtualAlloc(0, memory.size, MEM_COMMIT, PAGE_READWRITE);
   Assert(memory.size > 0);
  

@@ -30,6 +30,11 @@ RoundDoubleToUInt32(double d) {
   return result;
 }
 
+internal inline double
+Abs(double d) {
+  return (d < 0) ? -d : d;
+}
+
 // Bit-conversion to a double (used for random numbers)
 internal inline double
 ToDouble(uint64_t x) {
@@ -71,8 +76,8 @@ Random() {
   const uint64_t result = s0 + s1;
 
   s1 ^= s0;
-  randomSeed[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14); // a, b
-  randomSeed[1] = rotl(s1, 36); // c
+  randomSeed[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14);
+  randomSeed[1] = rotl(s1, 36);
 
   return result;
 }
