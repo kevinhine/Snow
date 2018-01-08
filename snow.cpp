@@ -48,10 +48,11 @@ InitParticle(FrameBuffer *buffer, Particle *p) {
   p->lerp = 1;
   p->lerpSpeed = 0.01;
 
+  double hue = RandomPercent();
   p->color.a = 0.25 + 0.75 * p->z;
-  p->color.r = 0.55f;
-  p->color.g = 0.9f; 
-  p->color.b = 1.0f;
+  p->color.r = Lerp(0.3f, 0.5f, hue);
+  p->color.g = Lerp(0.9f, 0.5f, hue);
+  p->color.b = Lerp(1.0f, 1.0f, hue);
   p->lifetime = 600;
 }
 
@@ -68,6 +69,8 @@ internal void
 AnimateParticle(Particle *p, double secondsElapsed) {
   // Perterbations
   if(RandomPercent() > 0.95 && p->lerp > 0.7) {
+
+    // Compound with gravity
     p->startVelX = p->velX;
     p->startVelY = p->velY;
 
@@ -137,9 +140,13 @@ UpdateAndRender(Memory *memory, FrameBuffer *buffer, double secondsElapsed) {
   // Simulate and draw particles
   for(size_t i = 0; i < ArrayLength(state->particles); i++) {
     Particle *p = state->particles + i;
+    
+    // TODO Die early if they leave the screen
 
-    // TODO Make particles fade out as they near their lifetime, die early if
-    // they leave the screen
+    // Particles fade out as they near end
+    if(p->lifetime != 0 && p->lifetime < 20) {
+      p->color.a *= 0.8;
+    }
 
     // Add to free list
     if(p->lifetime != 0 && p->lifetime <= 1) {
